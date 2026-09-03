@@ -3,188 +3,518 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buscador Astronómico</title>
+  <title>Buscador Astronómico - Catálogo Messier</title>
   <style>
     :root {
-      --bg: #0b0f19;
-      --card: #151d2f;
+      --bg: #090d16;
+      --card: #131b2e;
       --accent: #38bdf8;
+      --target: #a855f7;
+      --aligned: #22c55e;
+      --warning: #f59e0b;
       --text: #f8fafc;
       --subtext: #94a3b8;
       --border: rgba(255, 255, 255, 0.08);
     }
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body {
       background-color: var(--bg);
       color: var(--text);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       min-height: 100vh;
-      padding: 1.5rem;
+      padding: 1rem;
     }
-    header {
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-    header h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.25rem;
-    }
-    header p {
-      font-size: 0.85rem;
-      color: var(--subtext);
-    }
-    .container {
-      width: 100%;
-      max-width: 400px;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
+    header { text-align: center; margin-bottom: 0.75rem; }
+    header h1 { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+    #gps-status { font-size: 0.8rem; color: var(--subtext); margin-top: 0.2rem; }
+
+    .container { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 0.75rem; }
+    
     .card {
       background-color: var(--card);
-      border-radius: 1rem;
-      padding: 1.25rem;
+      border-radius: 0.75rem;
+      padding: 0.85rem;
       border: 1px solid var(--border);
       text-align: center;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
     }
-    h2 { 
-      font-size: 0.85rem; 
-      text-transform: uppercase; 
-      letter-spacing: 0.08em; 
-      color: var(--subtext); 
-      margin-bottom: 0.25rem; 
+
+    /* Filtros y buscador */
+    .search-box { display: flex; flex-direction: column; gap: 0.5rem; }
+    .filter-row { display: flex; gap: 0.4rem; }
+    .filter-btn {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--card);
+      color: var(--subtext);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      cursor: pointer;
     }
-    .dms-display {
-      font-size: 1.85rem;
-      font-weight: 700;
-      color: var(--accent);
-      font-variant-numeric: tabular-nums;
-      margin: 0.4rem 0;
+    .filter-btn.active {
+      background: var(--target);
+      color: #fff;
+      border-color: var(--target);
     }
-    .decimal-display { 
-      font-size: 0.85rem; 
-      color: var(--subtext); 
+
+    input[type="text"], select {
+      background-color: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      font-size: 0.95rem;
+      border-radius: 0.5rem;
+      width: 100%;
+      outline: none;
     }
-    button {
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    /* Panel de guiado visual */
+    .guidance-card {
+      border: 1.5px solid var(--target);
+      transition: border-color 0.3s, background-color 0.3s;
+    }
+    .guidance-card.aligned {
+      border-color: var(--aligned);
+      background-color: rgba(34, 197, 94, 0.1);
+    }
+    .guidance-arrow {
+      font-size: 2.5rem;
+      font-weight: bold;
+      line-height: 1;
+      margin: 0.3rem 0;
+      color: var(--target);
+      transition: color 0.3s;
+    }
+    .guidance-card.aligned .guidance-arrow { color: var(--aligned); }
+    .guidance-text { font-size: 1.05rem; font-weight: 700; }
+    .status-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      margin-top: 0.3rem;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .below-horizon { color: var(--warning); background-color: rgba(245, 158, 11, 0.15); }
+
+    /* Rejilla de ángulos */
+    .coords-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.4rem; }
+    .coord-item h3 { font-size: 0.7rem; text-transform: uppercase; color: var(--subtext); }
+    .dms-val { font-size: 1.25rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .dms-val.target-color { color: var(--target); }
+    .deg-val { font-size: 0.75rem; color: var(--subtext); }
+
+    button.primary-btn {
       background-color: var(--accent);
       color: #030712;
+      font-weight: 700;
       border: none;
-      padding: 0.9rem;
+      padding: 0.85rem;
       font-size: 1rem;
-      font-weight: 600;
-      border-radius: 0.75rem;
+      border-radius: 0.5rem;
       cursor: pointer;
       width: 100%;
-      transition: opacity 0.2s;
     }
-    button:active {
-      opacity: 0.85;
-    }
-    .hidden { 
-      display: none; 
-    }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
 
   <header>
     <h1>Buscador Astronómico</h1>
-    <p>Orientación y altitud en tiempo real</p>
+    <p id="gps-status">Catálogo Messier Completo (110 Objetos)</p>
   </header>
 
   <div class="container">
-    <button id="start-btn">Activar Sensores</button>
+    <button id="start-btn" class="primary-btn">Iniciar Sensores y GPS</button>
 
-    <div class="card">
-      <h2>Azimut (A) — Brújula</h2>
-      <div id="azimuth-dms" class="dms-display">--° --' --"</div>
-      <div id="azimuth-deg" class="decimal-display">0.00°</div>
+    <div id="controls-section" class="hidden search-box">
+      <!-- Filtro por categoría -->
+      <div class="filter-row">
+        <button class="filter-btn active" data-type="ALL">Todos (110)</button>
+        <button class="filter-btn" data-type="Galaxia">Galaxias</button>
+        <button class="filter-btn" data-type="Nebulosa">Nebulosas</button>
+        <button class="filter-btn" data-type="Cúmulo">Cúmulos</button>
+      </div>
+
+      <!-- Buscador dinámico y selector -->
+      <input type="text" id="object-search" placeholder="Escribe para buscar (ej: M31, Cangrejo, Leo)..." />
+      <select id="object-select"></select>
     </div>
 
-    <div class="card">
-      <h2>Altura / Elevación (h) — Nivel</h2>
-      <div id="altitude-dms" class="dms-display">--° --' --"</div>
-      <div id="altitude-deg" class="decimal-display">0.00°</div>
+    <!-- Guía y flechas de apuntado -->
+    <div id="guidance-panel" class="card guidance-card hidden">
+      <div id="arrow-display" class="guidance-arrow">●</div>
+      <div id="instruction-display" class="guidance-text">Apuntando...</div>
+      <div id="visibility-badge" class="status-badge">Visible en el cielo</div>
+    </div>
+
+    <!-- Posición orbital calculada en tiempo real -->
+    <div id="target-panel" class="card hidden">
+      <h2 style="font-size: 0.85rem; color: var(--target);" id="target-name">Objeto Seleccionado</h2>
+      <div class="coords-grid">
+        <div class="coord-item">
+          <h3>Azimut Teórico</h3>
+          <div id="target-az-dms" class="dms-val target-color">--° --' --"</div>
+          <div id="target-az-deg" class="deg-val">0.00°</div>
+        </div>
+        <div class="coord-item">
+          <h3>Altura Teórica</h3>
+          <div id="target-alt-dms" class="dms-val target-color">--° --' --"</div>
+          <div id="target-alt-deg" class="deg-val">0.00°</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Posición real del móvil -->
+    <div id="phone-panel" class="card hidden">
+      <h2 style="font-size: 0.85rem; color: var(--accent);">Hacia dónde mira tu teléfono</h2>
+      <div class="coords-grid">
+        <div class="coord-item">
+          <h3>Azimut (Brújula)</h3>
+          <div id="phone-az-dms" class="dms-val">--° --' --"</div>
+          <div id="phone-az-deg" class="deg-val">0.00°</div>
+        </div>
+        <div class="coord-item">
+          <h3>Altura (Nivel)</h3>
+          <div id="phone-alt-dms" class="dms-val">--° --' --"</div>
+          <div id="phone-alt-deg" class="deg-val">0.00°</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const startBtn = document.getElementById('start-btn');
-    const azimuthDms = document.getElementById('azimuth-dms');
-    const azimuthDeg = document.getElementById('azimuth-deg');
-    const altitudeDms = document.getElementById('altitude-dms');
-    const altitudeDeg = document.getElementById('altitude-deg');
+    // Catálogo Messier completo (110 objetos J2000) integrado
+    const MESSIER_DATA = [
+      {"id":"M1","name":"Nebulosa del Cangrejo","type":"Nebulosa","const":"Taurus","ra":5.575,"dec":22.01},
+      {"id":"M2","name":"Cúmulo globular M2","type":"Cúmulo","const":"Aquarius","ra":21.558,"dec":-0.82},
+      {"id":"M3","name":"Cúmulo globular M3","type":"Cúmulo","const":"Canes Venatici","ra":13.703,"dec":28.38},
+      {"id":"M4","name":"Cúmulo globular M4","type":"Cúmulo","const":"Scorpius","ra":16.393,"dec":-26.53},
+      {"id":"M5","name":"Cúmulo globular M5","type":"Cúmulo","const":"Serpens","ra":15.31,"dec":2.08},
+      {"id":"M6","name":"Cúmulo de la Mariposa","type":"Cúmulo","const":"Scorpius","ra":17.668,"dec":-32.22},
+      {"id":"M7","name":"Cúmulo de Ptolomeo","type":"Cúmulo","const":"Scorpius","ra":17.898,"dec":-34.82},
+      {"id":"M8","name":"Nebulosa de la Laguna","type":"Nebulosa","const":"Sagittarius","ra":18.063,"dec":-24.38},
+      {"id":"M9","name":"Cúmulo globular M9","type":"Cúmulo","const":"Ophiuchus","ra":17.32,"dec":-18.52},
+      {"id":"M10","name":"Cúmulo globular M10","type":"Cúmulo","const":"Ophiuchus","ra":16.952,"dec":-4.1},
+      {"id":"M11","name":"Cúmulo del Pato Salvaje","type":"Cúmulo","const":"Scutum","ra":18.852,"dec":-6.27},
+      {"id":"M12","name":"Cúmulo globular M12","type":"Cúmulo","const":"Ophiuchus","ra":16.787,"dec":-1.95},
+      {"id":"M13","name":"Gran Cúmulo de Hércules","type":"Cúmulo","const":"Hercules","ra":16.695,"dec":36.46},
+      {"id":"M14","name":"Cúmulo globular M14","type":"Cúmulo","const":"Ophiuchus","ra":17.627,"dec":-3.25},
+      {"id":"M15","name":"Cúmulo de Pegaso","type":"Cúmulo","const":"Pegasus","ra":21.5,"dec":12.17},
+      {"id":"M16","name":"Nebulosa del Águila","type":"Nebulosa","const":"Serpens","ra":18.313,"dec":-13.78},
+      {"id":"M17","name":"Nebulosa Omega / Cisne","type":"Nebulosa","const":"Sagittarius","ra":18.347,"dec":-16.18},
+      {"id":"M18","name":"Cúmulo abierto M18","type":"Cúmulo","const":"Sagittarius","ra":18.332,"dec":-17.13},
+      {"id":"M19","name":"Cúmulo globular M19","type":"Cúmulo","const":"Ophiuchus","ra":17.043,"dec":-26.27},
+      {"id":"M20","name":"Nebulosa Trífida","type":"Nebulosa","const":"Sagittarius","ra":18.043,"dec":-23.03},
+      {"id":"M21","name":"Cúmulo abierto M21","type":"Cúmulo","const":"Sagittarius","ra":18.077,"dec":-22.5},
+      {"id":"M22","name":"Cúmulo de Sagitario","type":"Cúmulo","const":"Sagittarius","ra":18.607,"dec":-23.9},
+      {"id":"M23","name":"Cúmulo abierto M23","type":"Cúmulo","const":"Sagittarius","ra":17.947,"dec":-19.02},
+      {"id":"M24","name":"Nube Estelar de Sagitario","type":"Cúmulo","const":"Sagittarius","ra":18.282,"dec":-18.5},
+      {"id":"M25","name":"Cúmulo abierto M25","type":"Cúmulo","const":"Sagittarius","ra":18.527,"dec":-19.25},
+      {"id":"M26","name":"Cúmulo abierto M26","type":"Cúmulo","const":"Scutum","ra":18.753,"dec":-9.4},
+      {"id":"M27","name":"Nebulosa Dumbbell","type":"Nebulosa","const":"Vulpecula","ra":19.993,"dec":22.72},
+      {"id":"M28","name":"Cúmulo globular M28","type":"Cúmulo","const":"Sagittarius","ra":18.408,"dec":-24.87},
+      {"id":"M29","name":"Cúmulo abierto M29","type":"Cúmulo","const":"Cygnus","ra":20.398,"dec":38.53},
+      {"id":"M30","name":"Cúmulo globular M30","type":"Cúmulo","const":"Capricornus","ra":21.673,"dec":-23.18},
+      {"id":"M31","name":"Galaxia de Andrómeda","type":"Galaxia","const":"Andromeda","ra":0.712,"dec":41.27},
+      {"id":"M32","name":"Galaxia enana M32","type":"Galaxia","const":"Andromeda","ra":0.713,"dec":40.87},
+      {"id":"M33","name":"Galaxia del Triángulo","type":"Galaxia","const":"Triangulum","ra":1.564,"dec":30.66},
+      {"id":"M34","name":"Cúmulo abierto M34","type":"Cúmulo","const":"Perseus","ra":2.7,"dec":42.78},
+      {"id":"M35","name":"Cúmulo de Géminis","type":"Cúmulo","const":"Gemini","ra":6.148,"dec":24.33},
+      {"id":"M36","name":"Cúmulo Pinwheel","type":"Cúmulo","const":"Auriga","ra":5.602,"dec":34.13},
+      {"id":"M37","name":"Cúmulo abierto M37","type":"Cúmulo","const":"Auriga","ra":5.873,"dec":32.55},
+      {"id":"M38","name":"Cúmulo Estrella Marina","type":"Cúmulo","const":"Auriga","ra":5.478,"dec":35.83},
+      {"id":"M39","name":"Cúmulo abierto M39","type":"Cúmulo","const":"Cygnus","ra":21.537,"dec":48.43},
+      {"id":"M40","name":"Estrella Doble Winnecke 4","type":"Otro","const":"Ursa Major","ra":12.373,"dec":58.08},
+      {"id":"M41","name":"Cúmulo Pequeña Colmena","type":"Cúmulo","const":"Canis Major","ra":6.783,"dec":-20.73},
+      {"id":"M42","name":"Gran Nebulosa de Orión","type":"Nebulosa","const":"Orion","ra":5.59,"dec":-5.45},
+      {"id":"M43","name":"Nebulosa de De Mairan","type":"Nebulosa","const":"Orion","ra":5.593,"dec":-5.27},
+      {"id":"M44","name":"Cúmulo del Pesebre / Colmena","type":"Cúmulo","const":"Cancer","ra":8.668,"dec":19.98},
+      {"id":"M45","name":"Las Pléyades","type":"Cúmulo","const":"Taurus","ra":3.783,"dec":24.12},
+      {"id":"M46","name":"Cúmulo abierto M46","type":"Cúmulo","const":"Puppis","ra":7.697,"dec":-14.82},
+      {"id":"M47","name":"Cúmulo abierto M47","type":"Cúmulo","const":"Puppis","ra":7.61,"dec":-14.5},
+      {"id":"M48","name":"Cúmulo abierto M48","type":"Cúmulo","const":"Hydra","ra":8.23,"dec":-5.8},
+      {"id":"M49","name":"Galaxia elíptica M49","type":"Galaxia","const":"Virgo","ra":12.497,"dec":8.0},
+      {"id":"M50","name":"Cúmulo del Corazón","type":"Cúmulo","const":"Monoceros","ra":7.053,"dec":-8.33},
+      {"id":"M51","name":"Galaxia del Remolino","type":"Galaxia","const":"Canes Venatici","ra":13.498,"dec":47.2},
+      {"id":"M52","name":"Cúmulo abierto M52","type":"Cúmulo","const":"Cassiopeia","ra":23.403,"dec":61.58},
+      {"id":"M53","name":"Cúmulo globular M53","type":"Cúmulo","const":"Coma Berenices","ra":13.215,"dec":18.17},
+      {"id":"M54","name":"Cúmulo globular M54","type":"Cúmulo","const":"Sagittarius","ra":18.918,"dec":-30.48},
+      {"id":"M55","name":"Cúmulo globular M55","type":"Cúmulo","const":"Sagittarius","ra":19.667,"dec":-30.96},
+      {"id":"M56","name":"Cúmulo globular M56","type":"Cúmulo","const":"Lyra","ra":19.277,"dec":30.18},
+      {"id":"M57","name":"Nebulosa del Anillo","type":"Nebulosa","const":"Lyra","ra":18.893,"dec":33.03},
+      {"id":"M58","name":"Galaxia espiral M58","type":"Galaxia","const":"Virgo","ra":12.628,"dec":11.82},
+      {"id":"M59","name":"Galaxia elíptica M59","type":"Galaxia","const":"Virgo","ra":12.7,"dec":11.65},
+      {"id":"M60","name":"Galaxia elíptica M60","type":"Galaxia","const":"Virgo","ra":12.728,"dec":11.55},
+      {"id":"M61","name":"Galaxia espiral M61","type":"Galaxia","const":"Virgo","ra":12.365,"dec":4.47},
+      {"id":"M62","name":"Cúmulo globular M62","type":"Cúmulo","const":"Ophiuchus","ra":17.02,"dec":-30.11},
+      {"id":"M63","name":"Galaxia del Girasol","type":"Galaxia","const":"Canes Venatici","ra":13.263,"dec":42.03},
+      {"id":"M64","name":"Galaxia del Ojo Negro","type":"Galaxia","const":"Coma Berenices","ra":12.945,"dec":21.68},
+      {"id":"M65","name":"Galaxia espiral M65 (Triplete)","type":"Galaxia","const":"Leo","ra":11.315,"dec":13.09},
+      {"id":"M66","name":"Galaxia espiral M66 (Triplete)","type":"Galaxia","const":"Leo","ra":11.337,"dec":12.99},
+      {"id":"M67","name":"Cúmulo del Rey Cobra","type":"Cúmulo","const":"Cancer","ra":8.857,"dec":11.82},
+      {"id":"M68","name":"Cúmulo globular M68","type":"Cúmulo","const":"Hydra","ra":12.658,"dec":-26.75},
+      {"id":"M69","name":"Cúmulo globular M69","type":"Cúmulo","const":"Sagittarius","ra":18.523,"dec":-32.35},
+      {"id":"M70","name":"Cúmulo globular M70","type":"Cúmulo","const":"Sagittarius","ra":18.72,"dec":-32.3},
+      {"id":"M71","name":"Cúmulo globular M71","type":"Cúmulo","const":"Sagitta","ra":19.897,"dec":18.78},
+      {"id":"M72","name":"Cúmulo globular M72","type":"Cúmulo","const":"Aquarius","ra":20.892,"dec":-12.54},
+      {"id":"M73","name":"Asterismo M73","type":"Otro","const":"Aquarius","ra":20.982,"dec":-12.63},
+      {"id":"M74","name":"Galaxia Fantasma","type":"Galaxia","const":"Pisces","ra":1.611,"dec":15.78},
+      {"id":"M75","name":"Cúmulo globular M75","type":"Cúmulo","const":"Sagittarius","ra":20.102,"dec":-21.92},
+      {"id":"M76","name":"Pequeña Dumbbell","type":"Nebulosa","const":"Perseus","ra":1.705,"dec":51.58},
+      {"id":"M77","name":"Galaxia espiral M77 (Cetus A)","type":"Galaxia","const":"Cetus","ra":2.711,"dec":-0.01},
+      {"id":"M78","name":"Nebulosa de reflexión M78","type":"Nebulosa","const":"Orion","ra":5.778,"dec":0.08},
+      {"id":"M79","name":"Cúmulo globular M79","type":"Cúmulo","const":"Lepus","ra":5.402,"dec":-24.52},
+      {"id":"M80","name":"Cúmulo globular M80","type":"Cúmulo","const":"Scorpius","ra":16.283,"dec":-22.97},
+      {"id":"M81","name":"Galaxia de Bode","type":"Galaxia","const":"Ursa Major","ra":9.926,"dec":69.07},
+      {"id":"M82","name":"Galaxia del Cigarro","type":"Galaxia","const":"Ursa Major","ra":9.931,"dec":69.68},
+      {"id":"M83","name":"Molinete Austral","type":"Galaxia","const":"Hydra","ra":13.617,"dec":-29.87},
+      {"id":"M84","name":"Galaxia lenticular M84","type":"Galaxia","const":"Virgo","ra":12.418,"dec":12.9},
+      {"id":"M85","name":"Galaxia lenticular M85","type":"Galaxia","const":"Coma Berenices","ra":12.423,"dec":18.19},
+      {"id":"M86","name":"Galaxia lenticular M86","type":"Galaxia","const":"Virgo","ra":12.435,"dec":12.95},
+      {"id":"M87","name":"Galaxia Virgo A (Agujero Negro)","type":"Galaxia","const":"Virgo","ra":12.514,"dec":12.39},
+      {"id":"M88","name":"Galaxia espiral M88","type":"Galaxia","const":"Coma Berenices","ra":12.533,"dec":14.42},
+      {"id":"M89","name":"Galaxia elíptica M89","type":"Galaxia","const":"Virgo","ra":12.593,"dec":12.56},
+      {"id":"M90","name":"Galaxia espiral M90","type":"Galaxia","const":"Virgo","ra":12.613,"dec":13.16},
+      {"id":"M91","name":"Galaxia espiral barrada M91","type":"Galaxia","const":"Coma Berenices","ra":12.59,"dec":14.5},
+      {"id":"M92","name":"Cúmulo globular M92","type":"Cúmulo","const":"Hercules","ra":17.285,"dec":43.14},
+      {"id":"M93","name":"Cúmulo abierto M93","type":"Cúmulo","const":"Puppis","ra":7.743,"dec":-23.86},
+      {"id":"M94","name":"Galaxia Ojo de Cocodrilo","type":"Galaxia","const":"Canes Venatici","ra":12.848,"dec":41.12},
+      {"id":"M95","name":"Galaxia espiral barrada M95","type":"Galaxia","const":"Leo","ra":10.732,"dec":11.7},
+      {"id":"M96","name":"Galaxia espiral M96","type":"Galaxia","const":"Leo","ra":10.778,"dec":11.82},
+      {"id":"M97","name":"Nebulosa del Búho","type":"Nebulosa","const":"Ursa Major","ra":11.247,"dec":55.02},
+      {"id":"M98","name":"Galaxia espiral M98","type":"Galaxia","const":"Coma Berenices","ra":12.23,"dec":14.9},
+      {"id":"M99","name":"Galaxia Molinete de Coma","type":"Galaxia","const":"Coma Berenices","ra":12.313,"dec":14.42},
+      {"id":"M100","name":"Galaxia espiral M100","type":"Galaxia","const":"Coma Berenices","ra":12.382,"dec":15.82},
+      {"id":"M101","name":"Galaxia del Molinete","type":"Galaxia","const":"Ursa Major","ra":14.054,"dec":54.35},
+      {"id":"M102","name":"Galaxia del Huso (NGC 5866)","type":"Galaxia","const":"Draco","ra":15.11,"dec":55.76},
+      {"id":"M103","name":"Cúmulo abierto M103","type":"Cúmulo","const":"Cassiopeia","ra":1.553,"dec":60.7},
+      {"id":"M104","name":"Galaxia del Sombrero","type":"Galaxia","const":"Virgo","ra":12.667,"dec":-11.62},
+      {"id":"M105","name":"Galaxia elíptica M105","type":"Galaxia","const":"Leo","ra":10.797,"dec":12.58},
+      {"id":"M106","name":"Galaxia espiral M106","type":"Galaxia","const":"Canes Venatici","ra":12.316,"dec":47.3},
+      {"id":"M107","name":"Cúmulo globular M107","type":"Cúmulo","const":"Ophiuchus","ra":16.542,"dec":-13.05},
+      {"id":"M108","name":"Galaxia de la Tabla de Surf","type":"Galaxia","const":"Ursa Major","ra":11.192,"dec":55.67},
+      {"id":"M109","name":"Galaxia espiral barrada M109","type":"Galaxia","const":"Ursa Major","ra":11.96,"dec":53.37},
+      {"id":"M110","name":"Galaxia satélite M110","type":"Galaxia","const":"Andromeda","ra":0.673,"dec":41.69}
+    ];
 
-    // Convierte grados decimales a formato Grados (°), Minutos ('), Segundos ('')
+    let currentFilterType = "ALL";
+    let userLat = null;
+    let userLon = null;
+    let currentPhoneAz = 0;
+    let currentPhoneAlt = 0;
+    let targetCoords = null;
+
+    const startBtn = document.getElementById('start-btn');
+    const controlsSection = document.getElementById('controls-section');
+    const objectSearch = document.getElementById('object-search');
+    const objectSelect = document.getElementById('object-select');
+    const guidancePanel = document.getElementById('guidance-panel');
+    const arrowDisplay = document.getElementById('arrow-display');
+    const instructionDisplay = document.getElementById('instruction-display');
+    const visibilityBadge = document.getElementById('visibility-badge');
+
+    function populateDropdown() {
+      const term = objectSearch.value.toLowerCase();
+      objectSelect.innerHTML = "";
+
+      const filtered = MESSIER_DATA.filter(obj => {
+        const matchesType = (currentFilterType === "ALL" || obj.type === currentFilterType);
+        const matchesQuery = obj.id.toLowerCase().includes(term) ||
+                             obj.name.toLowerCase().includes(term) ||
+                             obj.const.toLowerCase().includes(term);
+        return matchesType && matchesQuery;
+      });
+
+      filtered.forEach(obj => {
+        const opt = document.createElement('option');
+        opt.value = obj.id;
+        opt.textContent = `${obj.id} - ${obj.name} [${obj.const}]`;
+        objectSelect.appendChild(opt);
+      });
+
+      if (filtered.length > 0) {
+        updateTargetCalculation();
+      }
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilterType = btn.dataset.type;
+        populateDropdown();
+      });
+    });
+
+    objectSearch.addEventListener('input', populateDropdown);
+    objectSelect.addEventListener('change', updateTargetCalculation);
+
     function toDMS(deg, showSign = false) {
       if (deg === null || isNaN(deg)) return '--° --\' --"';
       let sign = deg < 0 ? '-' : (showSign ? '+' : '');
       let absDeg = Math.abs(deg);
-
       let d = Math.floor(absDeg);
       let minFloat = (absDeg - d) * 60;
       let m = Math.floor(minFloat);
       let s = Math.round((minFloat - m) * 60);
-
       if (s === 60) { m++; s = 0; }
       if (m === 60) { d++; m = 0; }
-
-      let pad = (n) => String(n).padStart(2, '0');
+      const pad = (n) => String(n).padStart(2, '0');
       return `${sign}${d}° ${pad(m)}' ${pad(s)}"`;
     }
 
+    function calculatePosition(raHours, decDeg, latDeg, lonDeg) {
+      const now = new Date();
+      const jd = (now.getTime() / 86400000) + 2440587.5;
+      const d = jd - 2451545.0;
+
+      let gmst = (280.46061837 + 360.98564736629 * d) % 360;
+      if (gmst < 0) gmst += 360;
+
+      let lst = (gmst + lonDeg) % 360;
+      if (lst < 0) lst += 360;
+
+      const raDeg = raHours * 15;
+      let ha = (lst - raDeg) % 360;
+      if (ha < 0) ha += 360;
+
+      const toRad = Math.PI / 180;
+      const toDeg = 180 / Math.PI;
+
+      const phi = latDeg * toRad;
+      const delta = decDeg * toRad;
+      const H = ha * toRad;
+
+      const sinAlt = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos(H);
+      const alt = Math.asin(sinAlt);
+
+      const cosAz = (Math.sin(delta) - Math.sin(phi) * sinAlt) / (Math.cos(phi) * Math.cos(alt));
+      let az = Math.acos(Math.min(1, Math.max(-1, cosAz))) * toDeg;
+      if (Math.sin(H) > 0) az = 360 - az;
+
+      return { az: az, alt: alt * toDeg };
+    }
+
+    function updateTargetCalculation() {
+      if (userLat === null || userLon === null || !objectSelect.value) return;
+      const target = MESSIER_DATA.find(o => o.id === objectSelect.value);
+      if (!target) return;
+
+      document.getElementById('target-name').textContent = `${target.id} — ${target.name} (${target.type})`;
+      targetCoords = calculatePosition(target.ra, target.dec, userLat, userLon);
+
+      document.getElementById('target-az-dms').textContent = toDMS(targetCoords.az);
+      document.getElementById('target-az-deg').textContent = `${targetCoords.az.toFixed(2)}°`;
+      document.getElementById('target-alt-dms').textContent = toDMS(targetCoords.alt, true);
+      document.getElementById('target-alt-deg').textContent = `${targetCoords.alt.toFixed(2)}°`;
+
+      if (targetCoords.alt < 0) {
+        visibilityBadge.textContent = "Oculto bajo el horizonte";
+        visibilityBadge.className = "status-badge below-horizon";
+      } else {
+        visibilityBadge.textContent = "Visible sobre el horizonte";
+        visibilityBadge.className = "status-badge";
+      }
+
+      updateGuidance();
+    }
+
+    function updateGuidance() {
+      if (!targetCoords) return;
+
+      let deltaAz = (targetCoords.az - currentPhoneAz + 540) % 360 - 180;
+      let deltaAlt = targetCoords.alt - currentPhoneAlt;
+      const tolerance = 3.5;
+
+      if (Math.abs(deltaAz) <= tolerance && Math.abs(deltaAlt) <= tolerance) {
+        guidancePanel.classList.add('aligned');
+        arrowDisplay.textContent = "🎯";
+        instructionDisplay.textContent = "¡OBJETIVO CENTRADO!";
+      } else {
+        guidancePanel.classList.remove('aligned');
+        if (Math.abs(deltaAz) > tolerance * 2) {
+          if (deltaAz > 0) {
+            arrowDisplay.textContent = "➔";
+            instructionDisplay.textContent = `Gira a la derecha (${Math.round(deltaAz)}°)`;
+          } else {
+            arrowDisplay.textContent = "⬅";
+            instructionDisplay.textContent = `Gira a la izquierda (${Math.round(Math.abs(deltaAz))}°)`;
+          }
+        } else {
+          if (deltaAlt > 0) {
+            arrowDisplay.textContent = "⬆";
+            instructionDisplay.textContent = `Apunta más arriba (+${Math.round(deltaAlt)}°)`;
+          } else {
+            arrowDisplay.textContent = "⬇";
+            instructionDisplay.textContent = `Apunta más abajo (${Math.round(deltaAlt)}°)`;
+          }
+        }
+      }
+    }
+
     function handleOrientation(event) {
-      // 1. Azimut (Rumbo brújula 0° a 360°)
       let heading = null;
       if (event.webkitCompassHeading !== undefined) {
-        // En iOS, webkitCompassHeading ya mide directamente respecto al Norte magnético
         heading = event.webkitCompassHeading;
       } else if (event.alpha !== null) {
-        // Estándar Android/Chrome
         heading = (360 - event.alpha) % 360;
       }
 
       if (heading !== null) {
-        azimuthDms.textContent = toDMS(heading, false);
-        azimuthDeg.textContent = `${heading.toFixed(2)}°`;
+        currentPhoneAz = heading;
+        document.getElementById('phone-az-dms').textContent = toDMS(heading);
+        document.getElementById('phone-az-deg').textContent = `${heading.toFixed(2)}°`;
       }
 
-      // 2. Altura / Elevación sobre el horizonte (-90° a +90°)
-      // Eje beta del móvil (al inclinarlo apuntando hacia el cielo)
       if (event.beta !== null) {
-        altitudeDms.textContent = toDMS(event.beta, true);
-        altitudeDeg.textContent = `${event.beta.toFixed(2)}°`;
+        currentPhoneAlt = event.beta;
+        document.getElementById('phone-alt-dms').textContent = toDMS(event.beta, true);
+        document.getElementById('phone-alt-deg').textContent = `${event.beta.toFixed(2)}°`;
       }
+
+      updateGuidance();
     }
 
     startBtn.addEventListener('click', async () => {
-      // Requerimiento de interacción de usuario explícita para iOS Safari
+      populateDropdown();
+
+      // GPS
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userLat = pos.coords.latitude;
+            userLon = pos.coords.longitude;
+            document.getElementById('gps-status').textContent = `GPS: ${userLat.toFixed(2)}°, ${userLon.toFixed(2)}°`;
+            
+            controlsSection.classList.remove('hidden');
+            guidancePanel.classList.remove('hidden');
+            document.getElementById('target-panel').classList.remove('hidden');
+            document.getElementById('phone-panel').classList.remove('hidden');
+
+            updateTargetCalculation();
+            setInterval(updateTargetCalculation, 1000);
+          },
+          () => { document.getElementById('gps-status').textContent = "Permiso GPS denegado"; },
+          { enableHighAccuracy: true }
+        );
+      }
+
+      // Sensores
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
-          const permission = await DeviceOrientationEvent.requestPermission();
-          if (permission === 'granted') {
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res === 'granted') {
             window.addEventListener('deviceorientation', handleOrientation, true);
             startBtn.classList.add('hidden');
-          } else {
-            alert('Permiso denegado para acceder a los sensores.');
           }
-        } catch (err) {
-          console.error(err);
-          alert('Error al inicializar sensores de orientación.');
-        }
+        } catch (e) { console.error(e); }
       } else {
-        // Android / Navegadores de escritorio compatibles
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
         startBtn.classList.add('hidden');
