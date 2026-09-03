@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador Astronómico</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151d2f;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+    header p {
+      font-size: 0.85rem;
+      color: var(--subtext);
+    }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .card {
+      background-color: var(--card);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      text-align: center;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    }
+    h2 { 
+      font-size: 0.85rem; 
+      text-transform: uppercase; 
+      letter-spacing: 0.08em; 
+      color: var(--subtext); 
+      margin-bottom: 0.25rem; 
+    }
+    .dms-display {
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      margin: 0.4rem 0;
+    }
+    .decimal-display { 
+      font-size: 0.85rem; 
+      color: var(--subtext); 
+    }
+    button {
+      background-color: var(--accent);
+      color: #030712;
+      border: none;
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.2s;
+    }
+    button:active {
+      opacity: 0.85;
+    }
+    .hidden { 
+      display: none; 
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Buscador Astronómico</h1>
+    <p>Orientación y altitud en tiempo real</p>
+  </header>
+
+  <div class="container">
+    <button id="start-btn">Activar Sensores</button>
+
+    <div class="card">
+      <h2>Azimut (A) — Brújula</h2>
+      <div id="azimuth-dms" class="dms-display">--° --' --"</div>
+      <div id="azimuth-deg" class="decimal-display">0.00°</div>
+    </div>
+
+    <div class="card">
+      <h2>Altura / Elevación (h) — Nivel</h2>
+      <div id="altitude-dms" class="dms-display">--° --' --"</div>
+      <div id="altitude-deg" class="decimal-display">0.00°</div>
+    </div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const azimuthDms = document.getElementById('azimuth-dms');
+    const azimuthDeg = document.getElementById('azimuth-deg');
+    const altitudeDms = document.getElementById('altitude-dms');
+    const altitudeDeg = document.getElementById('altitude-deg');
+
+    // Convierte grados decimales a formato Grados (°), Minutos ('), Segundos ('')
+    function toDMS(deg, showSign = false) {
+      if (deg === null || isNaN(deg)) return '--° --\' --"';
+      let sign = deg < 0 ? '-' : (showSign ? '+' : '');
+      let absDeg = Math.abs(deg);
+
+      let d = Math.floor(absDeg);
+      let minFloat = (absDeg - d) * 60;
+      let m = Math.floor(minFloat);
+      let s = Math.round((minFloat - m) * 60);
+
+      if (s === 60) { m++; s = 0; }
+      if (m === 60) { d++; m = 0; }
+
+      let pad = (n) => String(n).padStart(2, '0');
+      return `${sign}${d}° ${pad(m)}' ${pad(s)}"`;
+    }
+
+    function handleOrientation(event) {
+      // 1. Azimut (Rumbo brújula 0° a 360°)
+      let heading = null;
+      if (event.webkitCompassHeading !== undefined) {
+        // En iOS, webkitCompassHeading ya mide directamente respecto al Norte magnético
+        heading = event.webkitCompassHeading;
+      } else if (event.alpha !== null) {
+        // Estándar Android/Chrome
+        heading = (360 - event.alpha) % 360;
+      }
+
+      if (heading !== null) {
+        azimuthDms.textContent = toDMS(heading, false);
+        azimuthDeg.textContent = `${heading.toFixed(2)}°`;
+      }
+
+      // 2. Altura / Elevación sobre el horizonte (-90° a +90°)
+      // Eje beta del móvil (al inclinarlo apuntando hacia el cielo)
+      if (event.beta !== null) {
+        altitudeDms.textContent = toDMS(event.beta, true);
+        altitudeDeg.textContent = `${event.beta.toFixed(2)}°`;
+      }
+    }
+
+    startBtn.addEventListener('click', async () => {
+      // Requerimiento de interacción de usuario explícita para iOS Safari
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            startBtn.classList.add('hidden');
+          } else {
+            alert('Permiso denegado para acceder a los sensores.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Error al inicializar sensores de orientación.');
+        }
+      } else {
+        // Android / Navegadores de escritorio compatibles
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        startBtn.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
